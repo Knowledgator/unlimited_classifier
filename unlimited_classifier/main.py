@@ -9,11 +9,16 @@ from transformers import ( # type: ignore
     GenerationMixin,
     TFGenerationMixin,
     FlaxGenerationMixin,
+    AutoConfig,
+    AutoModelForCausalLM
 )
 from transformers.utils import ModelOutput # type: ignore
 import torch
 
-from unlimited_classifier.trie import LabelsTrie
+import pyximport # type: ignore
+pyximport.install() # type: ignore
+
+from unlimited_classifier.labels_trie import LabelsTrie # type: ignore
 
 class TextClassifier:
     """
@@ -30,10 +35,27 @@ class TextClassifier:
         Args:
             labels (List[str]): Labels that will be used.
         """        
-        self.trie = LabelsTrie([
+        self.trie: LabelsTrie = LabelsTrie([ # type: ignore
             [0] + self.tokenizer.encode(label) # type: ignore
             for label in labels
         ])
+
+
+    def initiaize_model(self, model: str) -> PreTrainedModel:
+        try:
+            return ( # type: ignore
+                AutoModelForSeq2SeqLM # type: ignore
+                .from_pretrained(model)
+                .to(self.device)
+            )
+        except Exception:
+            pass
+        
+        try:
+            config = AutoConfig.from_pretrained('bert-base-cased') # type: ignore
+            return AutoModelForCausalLM.from_config(config) # type: ignore
+        except Exception:
+            raise ValueError("Expected generative model.")
 
 
     def __init__(
@@ -77,14 +99,7 @@ class TextClassifier:
         self.max_new_tokens = max_new_tokens
 
         if isinstance(model, str):
-            try:
-                self.model = ( # type: ignore
-                    AutoModelForSeq2SeqLM # type: ignore
-                    .from_pretrained(model)
-                    .to(self.device)
-                )
-            except Exception:
-                raise ValueError("Expected generative model.")
+            self.model = self.initiaize_model(model)
         else:
             self.model = model
 
