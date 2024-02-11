@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "unlimited-classifier"
+license = "Apache-2.0"
+version = "0.0.1"
+description = "Universal text classifier for generative models"
+authors = ["knowledgator.com"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+transformers = "^4.37.2"
+torch = "^2.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
