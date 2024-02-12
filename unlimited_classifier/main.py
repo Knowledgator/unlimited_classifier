@@ -1,4 +1,4 @@
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Optional
 
 from transformers import ( # type: ignore
     PreTrainedTokenizer,
@@ -14,7 +14,6 @@ from transformers import ( # type: ignore
 )
 from transformers.utils import ModelOutput # type: ignore
 import torch
-
 import pyximport # type: ignore
 pyximport.install() # type: ignore
 
@@ -36,7 +35,7 @@ class TextClassifier:
             labels (List[str]): Labels that will be used.
         """        
         self.trie: LabelsTrie = LabelsTrie([ # type: ignore
-            [0] + self.tokenizer.encode(label) # type: ignore
+            [self.pad_token] + self.tokenizer.encode(label) # type: ignore
             for label in labels
         ])
 
@@ -68,6 +67,7 @@ class TextClassifier:
         device: str="cpu",
         num_beams: int=5,
         max_new_tokens: int=512,
+        pad_token: Optional[int]=None,
     ) -> None:
         """
         Args:
@@ -102,7 +102,7 @@ class TextClassifier:
             self.model = self.initiaize_model(model)
         else:
             self.model = model
-
+    
         if not any(
             isinstance(self.model, t) for t in ( # type: ignore
                 GenerationMixin, TFGenerationMixin, FlaxGenerationMixin
@@ -115,6 +115,11 @@ class TextClassifier:
         else:
             self.tokenizer = tokenizer
 
+        self.pad_token = (
+            pad_token
+            if not pad_token is None
+            else self.tokenizer.pad_token_id
+        )
         self.initialize_labels_trie(labels)
 
 
@@ -140,7 +145,9 @@ class TextClassifier:
             num_return_sequences=self.num_beams,
             return_dict_in_generate=True, output_scores=True,
             prefix_allowed_tokens_fn=(
-                lambda _, sent: self.trie.get(sent.tolist()) or [0] # type: ignore
+                lambda _, sent: 
+                self.trie.get(sent.tolist()) # type: ignore
+                or [self.tokenizer.eos_token_id] 
             )
         )
         return outputs # type: ignore
