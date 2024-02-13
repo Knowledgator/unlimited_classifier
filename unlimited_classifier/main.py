@@ -124,6 +124,15 @@ class TextClassifier:
         else:
             self.tokenizer = tokenizer
 
+        if self.tokenizer.pad_token is None: # type: ignore
+            tokenizer.add_special_tokens( # type: ignore
+                {"pad_token": "[PAD]"}, 
+                replace_additional_special_tokens=False
+            )
+            model.resize_token_embeddings(len(tokenizer)) # type: ignore
+
+        self.tokenizer.padding_side = "left" # type: ignore
+
         self.pad_token = (
             pad_token
             if not pad_token is None
