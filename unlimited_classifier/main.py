@@ -3,7 +3,7 @@ from typing import Tuple, List, Union, Optional
 from transformers import ( # type: ignore
     PreTrainedTokenizer,
     PreTrainedTokenizerFast,
-    PreTrainedModel, 
+    PreTrainedModel,
     AutoTokenizer, 
     AutoModelForSeq2SeqLM,
     GenerationMixin,
@@ -18,6 +18,7 @@ import pyximport # type: ignore
 pyximport.install() # type: ignore
 
 from unlimited_classifier.labels_trie import LabelsTrie # type: ignore
+from unlimited_classifier.scorer import Scorer
 
 class TextClassifier:
     """
@@ -68,6 +69,7 @@ class TextClassifier:
         num_beams: int=5,
         max_new_tokens: int=512,
         pad_token: Optional[int]=None,
+        scorer: Optional[Scorer]=None,
     ) -> None:
         """
         Args:
@@ -97,6 +99,7 @@ class TextClassifier:
         self.device = device
         self.num_beams = min(num_beams, len(labels))
         self.max_new_tokens = max_new_tokens
+        self.scorer = scorer
 
         if isinstance(model, str):
             self.model = self.initiaize_model(model)
@@ -137,13 +140,15 @@ class TextClassifier:
             **self.tokenizer( # type: ignore
                 prompts, 
                 return_tensors="pt",
-                padding=True, 
+                padding=True,
                 truncation=True
             ).to(self.device),
-            max_new_tokens=512,
+            pad_token_id=self.pad_token,
+            max_new_tokens=self.max_new_tokens,
             num_beams=self.num_beams,
             num_return_sequences=self.num_beams,
-            return_dict_in_generate=True, output_scores=True,
+            return_dict_in_generate=True,
+            output_scores=True,
             prefix_allowed_tokens_fn=(
                 lambda _, sent: 
                 self.trie.get(sent.tolist()) # type: ignore
@@ -200,7 +205,11 @@ class TextClassifier:
                 p = torch.exp(score).item() # type: ignore
                 label = decodes[text_id*self.num_beams+beam_id]
                 batch.append((label, p))
-            outputs2scores.append(batch)
+            outputs2scores.append(
+                self.scorer.score(texts[text_id], batch) 
+                if self.scorer 
+                else batch
+            )
         return outputs2scores
     
 
