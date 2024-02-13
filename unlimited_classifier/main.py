@@ -105,12 +105,18 @@ class TextClassifier:
             self.model = self.initiaize_model(model)
         else:
             self.model = model
-    
-        if not any(
-            isinstance(self.model, t) for t in ( # type: ignore
-                GenerationMixin, TFGenerationMixin, FlaxGenerationMixin
+
+        if (
+            not any(
+                isinstance(self.model, t) for t in ( # type: ignore
+                    GenerationMixin, 
+                    TFGenerationMixin, 
+                    FlaxGenerationMixin
+                ) 
             ) 
-        ):
+            and not self.model.config.is_decoder # type: ignore
+            and not self.model.config.is_encoder_decoder # type: ignore
+        ): 
             raise ValueError("Expected generative model.")
         
         if isinstance(tokenizer, str):
