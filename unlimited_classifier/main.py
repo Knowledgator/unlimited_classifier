@@ -40,7 +40,7 @@ class TextClassifier:
             tokens = self.tokenizer.encode(label) # type: ignore
             if tokens[0] == self.tokenizer.bos_token_id:
                 tokens = tokens[1:]
-            tokenized_labels.append([self.pad_token] + tokens) # type: ignore
+            tokenized_labels.append([self.pad_token_id] + tokens) # type: ignore
         self.trie = LabelsTrie(tokenized_labels)
 
 
@@ -95,8 +95,8 @@ class TextClassifier:
         device: str="cpu",
         num_beams: int=5,
         max_new_tokens: int=512,
-        pad_token: Optional[int]=None,
-        eos_token: Optional[int]=None,
+        pad_token_id: Optional[int]=None,
+        eos_token_id: Optional[int]=None,
         scorer: Optional[Scorer]=None,
     ) -> None:
         """
@@ -116,9 +116,14 @@ class TextClassifier:
             max_new_tokens (int, optional): Maximum newly generated tokens.
         Defaults to 512.
 
-            pad_token (int, optional): Pad token that will be used.
+            pad_token_id (int, optional): Pad token that will be used.
         If not provided will be equal to provided in tokenizer config. 
-        
+
+            eos_token_id (int, optional): EOS token that will be used.
+        If not provided will be equal to provided in tokenizer config.
+
+            scorer (Scorer, optional): Scorer class. Used for rescoring.
+
         Raises:
             ValueError: If no labels are provided.
 
@@ -158,16 +163,16 @@ class TextClassifier:
 
         self.tokenizer.padding_side = "left" # type: ignore
         
-        if eos_token is not None:
-            self.tokenizer.eos_token_id = eos_token
+        if eos_token_id is not None:
+            self.tokenizer.eos_token_id = eos_token_id
 
-        if pad_token is not None:
-            self.tokenizer.pad_token_id = pad_token
+        if pad_token_id is not None:
+            self.tokenizer.pad_token_id = pad_token_id
 
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
 
-        self.pad_token: int = cast(int, self.tokenizer.pad_token_id)
+        self.pad_token_id: int = cast(int, self.tokenizer.pad_token_id)
 
         self.encoder_decoder: bool = self.model.config.is_encoder_decoder # type: ignore
 
@@ -189,7 +194,7 @@ class TextClassifier:
         """        
         gen_sent: List[int] = sent.tolist() # type: ignore
         if not self.encoder_decoder:
-            gen_sent = [self.pad_token, *gen_sent[prompt_len:]]
+            gen_sent = [self.pad_token_id, *gen_sent[prompt_len:]]
 
         return (
             self.trie.get(gen_sent) # type: ignore
@@ -216,7 +221,7 @@ class TextClassifier:
         prompt_len = tokenized_prompt['input_ids'].shape[-1] # type: ignore
         outputs = self.model.generate( # type: ignore
             **tokenized_prompt, # type: ignore
-            pad_token_id=self.pad_token,
+            pad_token_id=self.pad_token_id,
             max_new_tokens=self.max_new_tokens,
             num_beams=self.num_beams,
             num_return_sequences=self.num_beams,
