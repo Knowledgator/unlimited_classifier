@@ -1,4 +1,4 @@
-from typing import Tuple, List, Union, Optional
+from typing import Tuple, List, Union, Optional, cast
 
 from transformers import ( # type: ignore
     PreTrainedTokenizer,
@@ -26,6 +26,7 @@ class TextClassifier:
     """
 
     model: PreTrainedModel
+    trie: LabelsTrie
 
     def initialize_labels_trie(self, labels: List[str]) -> None:
         """
@@ -36,30 +37,52 @@ class TextClassifier:
         """ 
         tokenized_labels = []
         for label in labels:
-            tokens = self.tokenizer.encode(label)
+            tokens = self.tokenizer.encode(label) # type: ignore
             if tokens[0] == self.tokenizer.bos_token_id:
                 tokens = tokens[1:]
-            tokenized_labels.append([self.pad_token] + tokens)
-        self.trie: LabelsTrie = LabelsTrie( tokenized_labels )
+            tokenized_labels.append([self.pad_token] + tokens) # type: ignore
+        self.trie = LabelsTrie(tokenized_labels)
 
-    def initiaize_model(self, model: str) -> PreTrainedModel:
+
+    def initialize_model(self, model: str) -> PreTrainedModel:
+        """
+        Model initialization
+
+        Args:
+            model (str): Model name or path.
+
+        Raises:
+            ValueError: If model doesnt exist or cant be found.
+
+            ValueError: If provided model is not generative.
+        
+        Returns:
+            PreTrainedModel: Initialized model.
+        """        
         try:
-            config = AutoConfig.from_pretrained(model)
+            config = AutoConfig.from_pretrained(model) # type: ignore
         except Exception:
-            raise ValueError("The path to the model does't exist or it's unavailable on Hugging Face.")
+            raise ValueError(
+                "The path to the model does't exist or it's unavailable on"
+                " Hugging Face."
+            )
 
-        if config.is_encoder_decoder:
+        if config.is_encoder_decoder: # type: ignore
             return ( # type: ignore
                 AutoModelForSeq2SeqLM # type: ignore
                 .from_pretrained(model)
                 .to(self.device)
             )
         else:
-            return ( # type: ignore
-                AutoModelForCausalLM # type: ignore
-                .from_pretrained(model)
-                .to(self.device)
-            ) 
+            try:
+                return ( # type: ignore
+                    AutoModelForCausalLM # type: ignore
+                    .from_pretrained(model)
+                    .to(self.device)
+                )
+            except:
+                raise ValueError("Expected generative model.")
+
 
     def __init__(
         self,
@@ -93,10 +116,13 @@ class TextClassifier:
             max_new_tokens (int, optional): Maximum newly generated tokens.
         Defaults to 512.
 
+            pad_token (int, optional): Pad token that will be used.
+        If not provided will be equal to provided in tokenizer config. 
+        
         Raises:
             ValueError: If no labels are provided.
 
-            ValueError: If a generative model is expected but not provided.
+            ValueError: If provided model is not generative.
         """        
         if not labels:
             raise ValueError("No labels provided.")
@@ -108,7 +134,7 @@ class TextClassifier:
         self.prompt = prompt
 
         if isinstance(model, str):
-            self.model = self.initiaize_model(model)
+            self.model = self.initialize_model(model)
         else:
             self.model = model
 
@@ -135,28 +161,42 @@ class TextClassifier:
         if eos_token is not None:
             self.tokenizer.eos_token_id = eos_token
 
+        if pad_token is not None:
+            self.tokenizer.pad_token_id = pad_token
+
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
 
-        self.pad_token = (
-            pad_token
-            if not pad_token is None
-            else self.tokenizer.pad_token_id
-        )
+        self.pad_token: int = cast(int, self.tokenizer.pad_token_id)
 
-        self.encoder_decoder = self.model.config.is_encoder_decoder
+        self.encoder_decoder: bool = self.model.config.is_encoder_decoder # type: ignore
 
         self.initialize_labels_trie(labels)
 
-    def _get_candidates(self, sent, prompt_len):
-        gen_sent = sent.tolist()
-        if not self.encoder_decoder:
-            gen_sent = gen_sent[prompt_len:]
-            gen_sent.insert(0, self.pad_token)
 
-        return (self.trie.get(gen_sent) # type: ignore
-                            or [self.tokenizer.eos_token_id])
+    def _get_candidates(
+        self, sent: torch.Tensor, prompt_len: int
+    ) -> List[int]:
+        """
+        Get next possible candidates
+
+        Args:
+            sent (torch.Tensor): Tensor.
+            prompt_len (int): Prompt length.
+
+        Returns:
+            List[int]: Possible next tokens.
+        """        
+        gen_sent: List[int] = sent.tolist() # type: ignore
+        if not self.encoder_decoder:
+            gen_sent = [self.pad_token, *gen_sent[prompt_len:]]
+
+        return (
+            self.trie.get(gen_sent) # type: ignore
+            or [self.tokenizer.eos_token_id]
+        )
     
+
     def predict(self, prompts: List[str]) -> ModelOutput:
         """
         Model prediction
@@ -168,14 +208,14 @@ class TextClassifier:
             ModelOutput: Output generated by the model.
         """
         tokenized_prompt = self.tokenizer( # type: ignore
-                prompts, 
-                return_tensors="pt",
-                padding=True,
-                truncation=True
-            ).to(self.device)
-        prompt_len = tokenized_prompt['input_ids'].shape[-1]
+            prompts, 
+            return_tensors="pt",
+            padding=True,
+            truncation=True
+        ).to(self.device)
+        prompt_len = tokenized_prompt['input_ids'].shape[-1] # type: ignore
         outputs = self.model.generate( # type: ignore
-            **tokenized_prompt,
+            **tokenized_prompt, # type: ignore
             pad_token_id=self.pad_token,
             max_new_tokens=self.max_new_tokens,
             num_beams=self.num_beams,
@@ -183,7 +223,7 @@ class TextClassifier:
             return_dict_in_generate=True,
             output_scores=True,
             prefix_allowed_tokens_fn=(
-                lambda _, sent: self._get_candidates(sent, prompt_len)
+                lambda _, sent: self._get_candidates(sent, prompt_len) # type: ignore
             )
         )
         return outputs # type: ignore
