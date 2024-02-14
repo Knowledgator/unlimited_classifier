@@ -52,6 +52,28 @@ OR
 output = classifier.ainvoke_batch(texts)
 ```
 
+## Scorer:
+
+Without a scorer, the results yield beam scores that are difficult to interpret.
+
+You can utilize the Scorer class to interpret scores within the range of 0 to 1.
+
+Initialization with scorer:
+
+``` python
+TextClassifier(
+    labels=[
+        '''label for classification 1''',
+        '''label for classification 2'''    
+    ],
+    model='''model name''',
+    tokenizer='''tokenizer name''',
+    scorer=Scorer()
+)
+```
+
+Scorere initialized with "knowledgator/comprehend_it-base" model.
+
 ## Examples:
 
 ``` python
@@ -65,4 +87,20 @@ text = "Characterize movie review: I rented I AM CURIOUS-YELLOW from my video st
 
 output = classifier.invoke(text)
 # [('negative', 0.0007813576376065612), ('positive', 0.0006674602045677602), ('neutral', 0.00023184997553471476)]
+```
+
+With scorer:
+
+``` python
+from unlimited_classifier.scorer import Scorer
+
+classifier = TextClassifier(
+    labels=["positive", "negative", "neutral"],
+    model="t5-base",
+    tokenizer="t5-base",
+    scorer=Scorer()
+)
+
+output = classifier.invoke(text)
+# [('positive', 0.9700802564620972), ('negative', 0.9582770466804504), ('neutral', 0.6801289319992065)]
 ```
