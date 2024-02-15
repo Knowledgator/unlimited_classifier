@@ -1,8 +1,6 @@
 # Ultimited classifier
 
-<div align="center">
-    <img src ="images/tree.jpeg", alt="Tree">
-</div>
+<img src ="images/tree.jpeg", alt="Tree">
 
 This is a universal text classifier that uses text generation with constraints for large-scale zero-shot text categorization. We represent labels as a tree of tokens and limit the possible variants of generation to provided labels. Such approach allows to make classification of text having millions of labels. 
 
