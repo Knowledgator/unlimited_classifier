@@ -1,6 +1,8 @@
 # Ultimited classifier
 
-![Tree](images/tree.jpeg)
+<div align="center">
+    <img src ="images/tree.jpeg", alt="Tree">
+</div>
 
 This is a universal text classifier that uses text generation with constraints for large-scale zero-shot text categorization. We represent labels as a tree of tokens and limit the possible variants of generation to provided labels. Such approach allows to make classification of text having millions of labels. 
 
@@ -12,10 +14,15 @@ pip install -U unlimited-classifier
 
 ## How to use
 
-Initialize TextClassifier with labels for classification and transformers model and tokenizer (names or actual model/tokenizer):
+Initialize TextClassifier with labels for classification and transformers model and tokenizer (names or actual model/tokenizer).
+
+You can choose any appropriate model on HuggingFace 🤗 including [encoder-decoders](https://huggingface.co/models?pipeline_tag=text2text-generation&sort=trending) and just [decoders](https://huggingface.co/models?pipeline_tag=text-generation&sort=trending) ones. 
+
 
 ``` python
-TextClassifier(
+from unlimited_classifier import TextClassifier
+
+classifier = TextClassifier(
     labels=[
         '''label for classification 1''',
         '''label for classification 2'''    
@@ -25,12 +32,19 @@ TextClassifier(
 )
 ```
 
+To update labels trie run the following method:
+```python
+
+classifier.initialize_labels_trie(labels)
+
+```
+
 Call method that suits you best:
 
-- invoke: for single text;
-- ainvoke: asynchronous for single text;
-- invoke_batch: for multiple texts;
-- ainvoke_batch: asynchronous for multiple texts;
+- **invoke:** for single text;
+- **ainvoke:** asynchronous for single text;
+- **invoke_batch:** for multiple texts;
+- **ainvoke_batch:** asynchronous for multiple texts;
 
 ``` python
 text = '''text for classification'''
@@ -63,7 +77,7 @@ You can utilize the Scorer class to interpret scores within the range of 0 to 1.
 Initialization with scorer:
 
 ``` python
-TextClassifier(
+classifier = TextClassifier(
     labels=[
         '''label for classification 1''',
         '''label for classification 2'''    
