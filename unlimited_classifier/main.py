@@ -70,15 +70,13 @@ class TextClassifier:
         if config.is_encoder_decoder: # type: ignore
             return ( # type: ignore
                 AutoModelForSeq2SeqLM # type: ignore
-                .from_pretrained(model)
-                .to(self.device)
+                .from_pretrained(model, device_map=self.device_map, quantization_config=self.quantization_config)
             )
         else:
             try:
                 return ( # type: ignore
                     AutoModelForCausalLM # type: ignore
-                    .from_pretrained(model)
-                    .to(self.device)
+                    .from_pretrained(model, device_map=self.device_map, quantization_config=self.quantization_config)
                 )
             except:
                 raise ValueError("Expected generative model.")
@@ -93,6 +91,8 @@ class TextClassifier:
         ],
         prompt: str = "Classifity the following text:\n {}\nLabel:",
         device: str="cpu",
+        device_map=None,
+        quantization_config=None,
         num_beams: int=5,
         max_new_tokens: int=512,
         pad_token_id: Optional[int]=None,
@@ -110,6 +110,10 @@ class TextClassifier:
             ]): Tokenizer.
             
             device (str, optional): Device. Defaults to "cpu".
+
+            device_map (str, optional): Device. Defaults to `device` value. "auto" - use GPU and CPU. "cuda" - use GPU
+
+            quantization_config: None by default. Useful to load model in 4 or 8 bits.
             
             num_beams (int, optional): Number of beams. Defaults to 5.
 
@@ -133,10 +137,12 @@ class TextClassifier:
             raise ValueError("No labels provided.")
         
         self.device = device
+        self.device_map = device_map if device_map is not None else device
         self.num_beams = min(num_beams, len(labels))
         self.max_new_tokens = max_new_tokens
         self.scorer = scorer
         self.prompt = prompt
+        self.quantization_config = quantization_config
 
         if isinstance(model, str):
             self.model = self.initialize_model(model)
