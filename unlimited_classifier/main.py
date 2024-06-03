@@ -91,7 +91,7 @@ class TextClassifier:
         ],
         prompt: str = "Classifity the following text:\n {}\nLabel:",
         device: str="cpu",
-        device_map:str="cpu",
+        device_map=None,
         quantization_config=None,
         num_beams: int=5,
         max_new_tokens: int=512,
@@ -111,7 +111,7 @@ class TextClassifier:
             
             device (str, optional): Device. Defaults to "cpu".
 
-            device_map (str, optional): Device. Defaults to "cpu". "auto" - use GPU and CPU. "cuda" - use GPU
+            device_map (str, optional): Device. Defaults to `device` value. "auto" - use GPU and CPU. "cuda" - use GPU
 
             quantization_config: None by default. Useful to load model in 4 or 8 bits.
             
@@ -137,7 +137,7 @@ class TextClassifier:
             raise ValueError("No labels provided.")
         
         self.device = device
-        self.device_map = device_map
+        self.device_map = device_map if device_map is not None else device
         self.num_beams = min(num_beams, len(labels))
         self.max_new_tokens = max_new_tokens
         self.scorer = scorer
