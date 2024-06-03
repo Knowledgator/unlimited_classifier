@@ -111,6 +111,8 @@ class TextClassifier:
             
             device (str, optional): Device. Defaults to "cpu".
 
+            device_map (str, optional): Device. Defaults to "cpu". "auto" - use GPU and CPU. "cuda" - use GPU
+
             quantization_config: None by default. Useful to load model in 4 or 8 bits.
             
             num_beams (int, optional): Number of beams. Defaults to 5.
